@@ -1,0 +1,35 @@
+{
+  "name": "buildbotprime",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Desktop builder automation twin for driving AI IDEs and local project runners.",
+  "scripts": {
+    "clean:desktop": "node scripts/clean-desktop.mjs",
+    "build": "npm run clean:desktop && npm run build:desktop",
+    "build:packages": "tsc -p packages/core/tsconfig.json && tsc -p packages/product-knowledge/tsconfig.json && tsc -p packages/model-providers/tsconfig.json && tsc -p packages/project-runner/tsconfig.json && tsc -p packages/observer/tsconfig.json && tsc -p packages/secure-storage/tsconfig.json",
+    "build:desktop": "vite build --config apps/desktop/vite.main.config.ts && vite build --config apps/desktop/vite.renderer.config.ts",
+    "typecheck": "tsc -p packages/core/tsconfig.json --noEmit && tsc -p packages/product-knowledge/tsconfig.json --noEmit && tsc -p packages/model-providers/tsconfig.json --noEmit && tsc -p packages/project-runner/tsconfig.json --noEmit && tsc -p packages/observer/tsconfig.json --noEmit && tsc -p packages/secure-storage/tsconfig.json --noEmit && tsc -p apps/desktop/tsconfig.main.json --noEmit && tsc -p apps/desktop/tsconfig.renderer.json --noEmit",
+    "dev": "npm run clean:desktop && npm run build:main && concurrently -k \"vite --config apps/desktop/vite.renderer.config.ts\" \"wait-on http://localhost:5173 && cross-env VITE_DEV_SERVER_URL=http://localhost:5173 electron apps/desktop\"",
+    "build:main": "vite build --config apps/desktop/vite.main.config.ts"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "dependencies": {
+    "@cursor/sdk": "^1.0.12",
+    "react": "^19.2.5",
+    "react-dom": "^19.2.5"
+  },
+  "devDependencies": {
+    "@types/node": "^25.6.0",
+    "@types/react": "^19.2.14",
+    "@types/react-dom": "^19.2.3",
+    "@vitejs/plugin-react": "^6.0.1",
+    "concurrently": "^9.2.1",
+    "cross-env": "^10.1.0",
+    "electron": "^41.5.0",
+    "typescript": "^6.0.3",
+    "vite": "^8.0.10",
+    "wait-on": "^9.0.5"
+  }
+}

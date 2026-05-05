@@ -1,0 +1,25 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "rootDir": "../..",
+    "jsx": "react-jsx",
+    "lib": ["DOM", "DOM.Iterable", "ES2022"],
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "allowImportingTsExtensions": true,
+    "noEmit": true,
+    "baseUrl": ".",
+    "paths": {
+      "@buildbotprime/core": ["../../packages/core/src/index.ts"],
+      "@buildbotprime/ide-adapters": ["../../packages/ide-adapters/src/index.ts"],
+      "@buildbotprime/model-providers": ["../../packages/model-providers/src/index.ts"],
+      "@buildbotprime/observer": ["../../packages/observer/src/index.ts"],
+      "@buildbotprime/product-knowledge": ["../../packages/product-knowledge/src/index.ts"],
+      "@buildbotprime/project-runner": ["../../packages/project-runner/src/index.ts"],
+      "@buildbotprime/secure-storage": ["../../packages/secure-storage/src/index.ts"],
+      "@buildbotprime/storage": ["../../packages/storage/src/index.ts"],
+      "@buildbotprime/twin-mind": ["../../packages/twin-mind/src/index.ts"]
+    }
+  },
+  "include": ["src/renderer/**/*.ts", "src/renderer/**/*.tsx", "src/shared/**/*.ts"]
+}

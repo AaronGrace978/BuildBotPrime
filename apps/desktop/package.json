@@ -1,0 +1,13 @@
+{
+  "name": "@buildbotprime/desktop",
+  "version": "0.1.0",
+  "private": true,
+  "main": "dist/main/main.cjs",
+  "scripts": {
+    "build": "vite build --config vite.main.config.ts && vite build --config vite.renderer.config.ts",
+    "build:main": "vite build --config vite.main.config.ts",
+    "build:renderer": "vite build --config vite.renderer.config.ts",
+    "typecheck": "tsc -p tsconfig.main.json --noEmit && tsc -p tsconfig.renderer.json --noEmit",
+    "dev": "npm run build:main && concurrently -k \"vite --config vite.renderer.config.ts\" \"wait-on http://localhost:5173 && cross-env VITE_DEV_SERVER_URL=http://localhost:5173 electron .\""
+  }
+}
