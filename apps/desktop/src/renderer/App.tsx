@@ -325,7 +325,9 @@ export function App(): ReactElement {
         mode: transcript.length <= 4 ? "onboard" : "chat"
       });
 
-      const reply = response.reply.trim() || "Listening.";
+      const reply =
+        response.reply.trim() ||
+        "I'm here with you. Tell me what you want BuildBotPrime to become, and I'll keep shaping the twin around it.";
       setChatTurns((existing) => [
         ...existing,
         {

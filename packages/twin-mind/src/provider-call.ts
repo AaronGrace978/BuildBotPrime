@@ -18,7 +18,7 @@ export async function callTwinMindChat(context: ProviderCallContext): Promise<st
 
   try {
     if (profile.provider === "ollama-cloud") {
-      return await callOllama(options, env);
+      return await callOllama(options, env, profile);
     }
     if (profile.provider === "openai") {
       return await callOpenAi(options, env, profile.model);
@@ -43,10 +43,15 @@ export async function callTwinMindChat(context: ProviderCallContext): Promise<st
   return offlineFallback(options, profile);
 }
 
-async function callOllama(options: TwinMindChatOptions, env: EnvMap): Promise<string> {
+async function callOllama(
+  options: TwinMindChatOptions,
+  env: EnvMap,
+  profile: AgenticModelProfile
+): Promise<string> {
   const apiKey = env.OLLAMA_API_KEY;
   if (!apiKey) throw new Error("OLLAMA_API_KEY is missing");
 
+  const model = profile.localCloudModel ?? profile.model;
   const response = await fetch(`${OLLAMA_CLOUD_DIRECT_URL}/api/chat`, {
     method: "POST",
     headers: {
@@ -54,7 +59,7 @@ async function callOllama(options: TwinMindChatOptions, env: EnvMap): Promise<st
       "Content-Type": "application/json"
     },
     body: JSON.stringify({
-      model: options.modelId,
+      model,
       stream: false,
       messages: [
         { role: "system", content: options.system },

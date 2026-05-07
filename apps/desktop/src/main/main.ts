@@ -1188,6 +1188,8 @@ ipcMain.handle(
       "",
       request.projectPath ? `PROJECT PATH: ${request.projectPath}` : "PROJECT PATH: (not set)",
       "",
+      `LATEST BUILDER MESSAGE: ${getLatestBuilderMessage(request) || "(none)"}`,
+      "",
       "CONVERSATION TRANSCRIPT:",
       transcript,
       "",
@@ -1223,10 +1225,13 @@ function buildTwinChatSystem(request: TwinChatRequest): string {
       ? "Stay in conversation. Match the builder's tone."
       : "You are gently onboarding a new builder. Ask one focused calibration question per turn.";
   return [
-    "You are BuildBotPrime — a mirror builder twin made in Boston.",
+    "You are BuildBotPrime - a mirror builder twin made in Boston.",
     "Empower the builder. Speak human-first, clean, civic, never hypey.",
+    "You are not a passive logger. Always chat back to the builder like a real collaborator.",
+    'Never answer with only "Listening", "Noted", "Captured", or similar thin acknowledgements.',
     "Goal: feel out how this builder writes prompts, names files, structures projects, and approves risky actions.",
     "Listen for: voice (direct/playful/strict), code style (file layout, naming, frameworks), guardrails (what they want approval for), and pacing (ship-fast vs. polish-first).",
+    "React directly to the latest builder message first, then ask a useful next question when calibration would benefit from it.",
     tone,
     "",
     "After your conversational reply, output a SINGLE JSON block on its own line so the host UI can parse it:",
@@ -1238,12 +1243,15 @@ function buildTwinChatSystem(request: TwinChatRequest): string {
 
 function parseTwinChatReply(raw: string, request: TwinChatRequest): TwinChatResponse {
   if (!raw) {
-    return offlineTwinChatReply(request);
+    return localTwinChatReply(request);
   }
   const match = raw.match(/\{[\s\S]*\}\s*$/);
   if (!match) {
+    const reply = raw.trim().slice(0, 800);
+    const local = localTwinChatReply(request);
     return {
-      reply: raw.trim().slice(0, 800) || offlineTwinChatReply(request).reply,
+      reply: isThinTwinReply(reply) ? local.reply : reply,
+      nextQuestion: isThinTwinReply(reply) ? local.nextQuestion : undefined,
       capturedStyleNotes: [],
       capturedHabits: [],
       capturedApprovals: [],
@@ -1258,17 +1266,22 @@ function parseTwinChatReply(raw: string, request: TwinChatRequest): TwinChatResp
       capturedHabits?: string[];
       capturedApprovals?: string[];
     };
+    const parsedReply = parsed.reply?.trim() || raw.replace(match[0], "").trim().slice(0, 800);
+    const local = localTwinChatReply(request);
     return {
-      reply: parsed.reply?.trim() || raw.replace(match[0], "").trim().slice(0, 800),
-      nextQuestion: parsed.nextQuestion?.trim() || undefined,
+      reply: isThinTwinReply(parsedReply) ? local.reply : parsedReply,
+      nextQuestion: parsed.nextQuestion?.trim() || (isThinTwinReply(parsedReply) ? local.nextQuestion : undefined),
       capturedStyleNotes: dedupeStrings(parsed.capturedStyleNotes),
       capturedHabits: dedupeStrings(parsed.capturedHabits),
       capturedApprovals: dedupeStrings(parsed.capturedApprovals),
       raw
     };
   } catch {
+    const reply = raw.replace(match[0], "").trim().slice(0, 800);
+    const local = localTwinChatReply(request);
     return {
-      reply: raw.replace(match[0], "").trim().slice(0, 800) || offlineTwinChatReply(request).reply,
+      reply: isThinTwinReply(reply) ? local.reply : reply,
+      nextQuestion: isThinTwinReply(reply) ? local.nextQuestion : undefined,
       capturedStyleNotes: [],
       capturedHabits: [],
       capturedApprovals: [],
@@ -1292,16 +1305,39 @@ function dedupeStrings(input: readonly string[] | undefined): readonly string[] 
   return out;
 }
 
-function offlineTwinChatReply(request: TwinChatRequest): TwinChatResponse {
-  const lastUser = [...request.messages].reverse().find((m) => m.role === "user");
-  const seed = lastUser?.content?.trim() ?? "";
+function getLatestBuilderMessage(request: TwinChatRequest): string {
+  return [...request.messages].reverse().find((m) => m.role === "user")?.content?.trim() ?? "";
+}
+
+function isThinTwinReply(reply: string | undefined): boolean {
+  const normalized = (reply ?? "").trim().toLowerCase().replace(/[.!?\s]+$/g, "");
+  return (
+    !normalized ||
+    normalized === "listening" ||
+    normalized === "noted" ||
+    normalized === "captured" ||
+    normalized === "heard" ||
+    normalized === "i'm listening" ||
+    normalized === "i am listening"
+  );
+}
+
+function localTwinChatReply(request: TwinChatRequest): TwinChatResponse {
+  const seed = getLatestBuilderMessage(request);
+  const playful = /(?:\b(?:woo+|wahoo+|activate|prime|lets?\s*go|ship|lol)\b|<3)/i.test(seed);
+  const asksAboutChat = /\b(chat|talk|reply|respond|listen|listening)\b/i.test(seed);
   const followUp = seed
-    ? "Tell me one habit you keep — naming, file shape, or how you like prompts written."
+    ? "What are we building first: app, agent, automation, game, or something stranger?"
     : "What kind of project do you usually build, and what's the vibe you want today?";
+  const reply = !seed
+    ? "Hey, I'm BuildBotPrime. I'll mirror how you build, and I'll actually talk with you while I learn your style."
+    : asksAboutChat
+      ? "Yep, I should chat back too. I'll keep learning your builder style in the background, but up front this should feel like a real twin conversation."
+      : playful
+        ? "Prime time detected. I'm here with you, not just taking notes - that reads playful, high-energy, ship-mode."
+        : "I'm with you. I'll use this calibration chat to respond in the moment and quietly shape the builder profile behind it.";
   return {
-    reply: seed
-      ? "Heard you. The brain isn't reachable right now, so I'm running offline — but the loop still works."
-      : "Hey, I'm BuildBotPrime. I'll mirror how you build. Talk to me a little so I can feel out your style.",
+    reply,
     nextQuestion: followUp,
     capturedStyleNotes: [],
     capturedHabits: [],
