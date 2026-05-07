@@ -1095,7 +1095,7 @@ function BuilderView(props: BuilderViewProps): ReactElement {
             <div className="intake-head">
               <div>
                 <strong>Document intake</strong>
-                <span>Attach specs, notes, logs, tickets, or project context. These are injected into the build prompt.</span>
+                <span>Attach PDFs, Word docs, specs, notes, logs, tickets, or project context. These are injected into the build prompt.</span>
               </div>
               <button type="button" className="btn-secondary" onClick={onAttachDocuments}>
                 Attach docs

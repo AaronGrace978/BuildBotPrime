@@ -55,6 +55,8 @@ import {
   type TwinMindStartRequest,
   type TwinMindStartResponse
 } from "../shared/ipc.js";
+import mammoth from "mammoth";
+import { PDFParse } from "pdf-parse";
 
 declare const __dirname: string;
 
@@ -62,6 +64,7 @@ const store = new InMemorySessionStore();
 const envKeysFromFile = new Set<string>();
 const projectWatchers = new Map<string, { watcher: FSWatcher; eventCount: number }>();
 const twinMindEngines = new Map<string, TwinMindEngine>();
+const INTAKE_MAX_CHARS = 60_000;
 let activeProviderId: ModelProviderId | "all" = "all";
 let mainWindowRef: BrowserWindow | null = null;
 let secretStore: SecretStore | null = null;
@@ -848,7 +851,24 @@ ipcMain.handle(IPC_CHANNELS.selectIntakeDocuments, async (): Promise<DocumentInt
     filters: [
       {
         name: "Project documents",
-        extensions: ["txt", "md", "mdx", "json", "yaml", "yml", "csv", "ts", "tsx", "js", "jsx", "css", "html"]
+        extensions: [
+          "pdf",
+          "docx",
+          "doc",
+          "txt",
+          "md",
+          "mdx",
+          "json",
+          "yaml",
+          "yml",
+          "csv",
+          "ts",
+          "tsx",
+          "js",
+          "jsx",
+          "css",
+          "html"
+        ]
       },
       { name: "All files", extensions: ["*"] }
     ]
@@ -863,6 +883,9 @@ ipcMain.handle(IPC_CHANNELS.selectIntakeDocuments, async (): Promise<DocumentInt
 
   const files: DocumentIntakeFile[] = [];
   const allowed = new Set([
+    ".pdf",
+    ".docx",
+    ".doc",
     ".txt",
     ".md",
     ".mdx",
@@ -894,14 +917,13 @@ ipcMain.handle(IPC_CHANNELS.selectIntakeDocuments, async (): Promise<DocumentInt
       }
 
       const info = await stat(path);
-      const raw = await readFile(path, "utf8");
-      const maxChars = 60_000;
+      const raw = await readIntakeDocument(path, extension);
       files.push({
         path,
         name: basename(path),
-        content: raw.slice(0, maxChars),
+        content: raw.slice(0, INTAKE_MAX_CHARS),
         bytes: info.size,
-        truncated: raw.length > maxChars
+        truncated: raw.length > INTAKE_MAX_CHARS
       });
     } catch (error) {
       files.push({
@@ -917,6 +939,30 @@ ipcMain.handle(IPC_CHANNELS.selectIntakeDocuments, async (): Promise<DocumentInt
 
   return { canceled: false, files };
 });
+
+async function readIntakeDocument(path: string, extension: string): Promise<string> {
+  if (extension === ".pdf") {
+    const buffer = await readFile(path);
+    const parser = new PDFParse({ data: new Uint8Array(buffer) });
+    try {
+      const result = await parser.getText();
+      return result.text.trim();
+    } finally {
+      await parser.destroy();
+    }
+  }
+
+  if (extension === ".docx") {
+    const result = await mammoth.extractRawText({ path });
+    return result.value.trim();
+  }
+
+  if (extension === ".doc") {
+    throw new Error("Legacy .doc files are not readable yet. Save as .docx or PDF and attach again.");
+  }
+
+  return readFile(path, "utf8");
+}
 
 ipcMain.handle(
   IPC_CHANNELS.saveProviderSettings,
